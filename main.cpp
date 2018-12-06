@@ -26,6 +26,7 @@
 #include <stdio.h>				// for printf functionality
 #include <stdlib.h>				// for exit functionality
 
+#include <iostream>
 #include <vector>					// for vector
 #include <time.h>
 #include <CSCI441/objects3.hpp>
@@ -69,7 +70,8 @@ GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
 glm::vec3 userPos;
-userDir = glm::vec3(1, 0, 0);
+glm::vec3 userDir = glm::vec3(0, 0, 0);
+glm::vec4 rotate;
 
 float xAngle = 0;
 float zAngle = 0;
@@ -150,8 +152,11 @@ static void error_callback(int error, const char* description) {
 //	Responds to key presses and key releases
 //
 ////////////////////////////////////////////////////////////////////////////////
+
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	float maxH = .5;
+	glm::vec3 plainDir = glm::vec3(1.0, 1.0, 1.0);
+
 	if( (key == GLFW_KEY_ESCAPE || key == 'Q') && action == GLFW_PRESS )
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 
@@ -161,21 +166,33 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			if (xAngle <= maxH) {
 				xAngle += .1;
 			}
+			//rotate = glm::rotate(glm::mat4(), xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			//userDir.z = rotate.z;
+			//user->direction = userDir;
 			break;
 		case GLFW_KEY_DOWN:
 			if (xAngle >= -maxH) {
 				xAngle -= .1;
 			}
+			//rotate = glm::rotate(glm::mat4(), -xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			//userDir.z = rotate.z;	
+			//user->direction = userDir;
 			break;
 		case GLFW_KEY_LEFT:
 			if (zAngle <= maxH) {
 				zAngle += .1;
 			}
+			//rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			//userDir.x = rotate.x;			
+			//user->direction = userDir;
 			break;
 		case GLFW_KEY_RIGHT:
 			if (zAngle >= -maxH) {
 				zAngle -= .1;
 			}
+			//rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			//userDir.x = rotate.x;			
+			//user->direction = userDir;
 			break;
 		}
 	}
@@ -616,6 +633,10 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
+	//update ball direction
+	if (abs(zAngle) > abs(xAngle)) user->direction = glm::vec3(acos(zAngle), -asin(zAngle), acos(xAngle));
+	else user->direction = glm::vec3(acos(zAngle), -asin(xAngle), acos(xAngle));
+
 	glBindTexture( GL_TEXTURE_2D, mazeTextureHandle );
 	//HERE IS WHERE WE DRAW THE OBSTACLEESSSSSS
 	for( unsigned int i = 0; i < mazePieces.size(); i++ ) {
@@ -628,13 +649,16 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
+	m = glm::mat4(1.0);
+	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
-	userDir = glm::rotate(userDir, xAngle, glm::vec3(1.0, 0.0, 0.0));
-	userDir = glm::rotate(userDir, zAngle, glm::vec3(0.0, 0.0, 1.0));
-	if (xAngle == 0 && yAngle == 0) {
+	if (xAngle == 0 && zAngle == 0) {
 		//do nothing
+	}
+	else {
+		user->moveForward();
 	}
 
 }
@@ -646,7 +670,7 @@ void collideMarblesWithWall() {
 		if (distancex <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
 			user->direction.x = 0;
 		}
-		if (distancey <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
+		if (distancez <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
 			user->direction.z = 0;
 		}
 	}
@@ -705,21 +729,22 @@ int main( int argc, char *argv[] ) {
 
 
 		if (viewOverlay) {
-			int overlayX = windowWidth - windowHeight / 10;
-			int overlayY = windowHeight - windowHeight / 10;
+			int overlayX = windowWidth - windowHeight / 5;
+			int overlayY = windowHeight - windowHeight / 5;
 
 			glEnable(GL_SCISSOR_TEST);
-			glScissor(overlayX, overlayY, overlaySize, overlaySize);
+			glScissor(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			glDisable(GL_SCISSOR_TEST);
 
-			glViewport(overlayX, overlayY, overlaySize, overlaySize);
+			glViewport(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
 
 			// First person camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,30,0),lookAtPoint, glm::vec3(0,0,1));
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,20,0),lookAtPoint, glm::vec3(0,0,1));
 			renderScene(viewMtx, projectionMatrix);
 		}
 
+		movePlayer();
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
 
