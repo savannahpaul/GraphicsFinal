@@ -42,6 +42,8 @@
 int windowWidth, windowHeight;
 bool controlDown = false;
 bool leftMouseDown = false;
+bool viewOverlay = true;
+int overlaySize = 150;
 glm::vec2 mousePosition( -9999.0f, -9999.0f );
 
 glm::vec3 cameraAngles( 1.82f, 2.01f, 25.0f );
@@ -229,7 +231,7 @@ static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {
 						cameraAngles.z += totChgSq*0.01f;
 
 						if( cameraAngles.z <= 2.0f ) cameraAngles.z = 2.0f;
-						if( cameraAngles.z >= 30.0f ) cameraAngles.z = 30.0f;
+						if( cameraAngles.z >= 60.0f ) cameraAngles.z = 60.0f;
 					}
 					convertSphericalToCartesian();
 
@@ -748,6 +750,23 @@ int main( int argc, char *argv[] ) {
 		// draw everything to the window
 		// pass our view and projection matrices as well as deltaTime between frames
 		renderScene( viewMatrix, projectionMatrix );
+
+
+		if (viewOverlay) {
+			int overlayX = windowWidth - overlaySize;
+			int overlayY = windowHeight - overlaySize;
+
+			glEnable(GL_SCISSOR_TEST);
+			glScissor(overlayX, overlayY, overlaySize, overlaySize);
+			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+			glDisable(GL_SCISSOR_TEST);
+
+			glViewport(overlayX, overlayY, overlaySize, overlaySize);
+
+			// First person camera view matrix
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,20,0),lookAtPoint, glm::vec3(0,0,1));
+			renderScene(viewMtx, projectionMatrix);
+		}
 
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
