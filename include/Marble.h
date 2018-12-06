@@ -14,15 +14,15 @@ public:
 
 	// MISCELLANEOUS
   double radius;
+  double _rotation;
   glm::vec3 location;
   glm::vec3 direction;
 
   void draw( glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc );
-  void moveForward();
+  void moveForward(float x, float z);
   void moveBackward();
 
 private:
-  double _rotation;
   glm::vec3 _color;
 };
 

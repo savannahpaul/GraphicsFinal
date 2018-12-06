@@ -165,33 +165,33 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			if (xAngle <= maxH) {
 				xAngle += .1;
 			}
-			rotate = glm::rotate(glm::mat4(), xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
-			userDir.z = rotate.z;
-			user->direction = userDir;
+			//rotate = glm::rotate(glm::mat4(), xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			//userDir.z = rotate.z;
+			//user->direction = userDir;
 			break;
 		case GLFW_KEY_DOWN:
 			if (xAngle >= -maxH) {
 				xAngle -= .1;
 			}
-			rotate = glm::rotate(glm::mat4(), -xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
-			userDir.z = rotate.z;	
-			user->direction = userDir;
+			//rotate = glm::rotate(glm::mat4(), -xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			//userDir.z = rotate.z;	
+			//user->direction = userDir;
 			break;
-		case GLFW_KEY_LEFT:
+		case GLFW_KEY_RIGHT:
 			if (zAngle <= maxH) {
 				zAngle += .1;
 			}
-			rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
-			userDir.x = rotate.x;			
-			user->direction = userDir;
+			//rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			//userDir.x = rotate.x;			
+			//user->direction = userDir;
 			break;
-		case GLFW_KEY_RIGHT:
+		case GLFW_KEY_LEFT:
 			if (zAngle >= -maxH) {
 				zAngle -= .1;
 			}
-			rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
-			userDir.x = rotate.x;			
-			user->direction = userDir;
+			//rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			//userDir.x = rotate.x;			
+			//user->direction = userDir;
 			break;
 		}
 	}
@@ -594,7 +594,7 @@ void populateMaze() {
 			xLoc += groundSize/10;
 		}
 	}
-	user = new Marble(userPos, userDir, 1.0);
+	user = new Marble(userPos, glm::vec3(1, 1, 1), 1.0);
 	ipf.close();
 }
 
@@ -644,18 +644,22 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
+
 	m = glm::mat4(1.0);
+	m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	m = glm::translate(m, user->location);
+	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
 	if (xAngle == 0 && zAngle == 0) {
-		//do nothing
+
 	}
 	else {
-		user->moveForward();
+		user->moveForward(-zAngle, xAngle);
 	}
-
 }
 
 void collideMarblesWithWall() {
@@ -686,38 +690,6 @@ void collideMarblesWithWall() {
 		}
 		
 	}
-}
-
-void collideMarblesWithEachother() {
-	// TODO #3
-	// check for interball collisions
-	// warning this isn't perfect...balls can get caught and
-	// continually bounce back-and-forth in place off
-	// each other
-
-	for (int i = 0; i < marbles.size(); i++) {
-		for (int j = 0; j < marbles.size(); j++) {
-			if (i == j) {
-				continue;
-			}else{
-			double distance = sqrt(pow(marbles[i]->location.x - marbles[j]->location.x, 2) + pow(marbles[i]->location.z - marbles[j]->location.z, 2));
-			if (distance <= (marbles[i]->radius + marbles[j]->radius)) {
-				marbles[i]->moveBackward();
-				marbles[j]->moveBackward();
-				//bounce marble 1
-				glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, (marbles[j]->location - marbles[i]->location))*(marbles[j]->location - marbles[i]->location);
-				glm::vec3 newdir2 = marbles[j]->direction - 2 * dot(marbles[j]->direction, (marbles[i]->location - marbles[j]->location))*(marbles[i]->location - marbles[j]->location);
-				marbles[i]->direction = newdir;
-				marbles[j]->direction = newdir2;
-				marbles[i]->moveForward();
-				marbles[j]->moveForward();
-			}
-			}
-
-		}
-	}
-
-
 }
 
 ///*****************************************************************************
