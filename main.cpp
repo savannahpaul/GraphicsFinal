@@ -753,7 +753,7 @@ int main( int argc, char *argv[] ) {
 			glViewport(overlayX, overlayY, overlaySize, overlaySize);
 
 			// First person camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,20,0),lookAtPoint, glm::vec3(0,0,1));
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,30,0),lookAtPoint, glm::vec3(0,0,1));
 			renderScene(viewMtx, projectionMatrix);
 		}
 
