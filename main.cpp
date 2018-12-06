@@ -69,7 +69,8 @@ GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
 glm::vec3 userPos;
-userDir = glm::vec3(1, 0, 0);
+glm::vec3 userDir = glm::vec3(0, 0, 0);
+glm::vec4 rotate;
 
 float xAngle = 0;
 float zAngle = 0;
@@ -150,8 +151,11 @@ static void error_callback(int error, const char* description) {
 //	Responds to key presses and key releases
 //
 ////////////////////////////////////////////////////////////////////////////////
+
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	float maxH = .5;
+	glm::vec3 plainDir = glm::vec3(1.0, 1.0, 1.0);
+
 	if( (key == GLFW_KEY_ESCAPE || key == 'Q') && action == GLFW_PRESS )
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 
@@ -161,21 +165,33 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			if (xAngle <= maxH) {
 				xAngle += .1;
 			}
+			rotate = glm::rotate(glm::mat4(), xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			userDir.z = rotate.z;
+			user->direction = userDir;
 			break;
 		case GLFW_KEY_DOWN:
 			if (xAngle >= -maxH) {
 				xAngle -= .1;
 			}
+			rotate = glm::rotate(glm::mat4(), -xAngle, glm::vec3(0.0, 0.0, 1.0))*glm::vec4(plainDir, 0);
+			userDir.z = rotate.z;	
+			user->direction = userDir;
 			break;
 		case GLFW_KEY_LEFT:
 			if (zAngle <= maxH) {
 				zAngle += .1;
 			}
+			rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			userDir.x = rotate.x;			
+			user->direction = userDir;
 			break;
 		case GLFW_KEY_RIGHT:
 			if (zAngle >= -maxH) {
 				zAngle -= .1;
 			}
+			rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+			userDir.x = rotate.x;			
+			user->direction = userDir;
 			break;
 		}
 	}
@@ -628,13 +644,16 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
+	m = glm::mat4(1.0);
+	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
-	userDir = glm::rotate(userDir, xAngle, glm::vec3(1.0, 0.0, 0.0));
-	userDir = glm::rotate(userDir, zAngle, glm::vec3(0.0, 0.0, 1.0));
-	if (xAngle == 0 && yAngle == 0) {
+	if (xAngle == 0 && zAngle == 0) {
 		//do nothing
+	}
+	else {
+		user->moveForward();
 	}
 
 }
@@ -768,6 +787,7 @@ int main( int argc, char *argv[] ) {
 			renderScene(viewMtx, projectionMatrix);
 		}
 
+		movePlayer();
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
 
