@@ -31,6 +31,7 @@
 #include <CSCI441/objects3.hpp>
 #include <CSCI441/ShaderProgram3.hpp>
 #include <CSCI441/TextureUtils.hpp>
+#include <sstream>
 
 #include "include/Marble.h"
 
@@ -60,9 +61,13 @@ GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, unifo
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 std::vector< Marble* > marbles;
-GLfloat groundSize = 10;
+GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
+
+float xAngle = 0;
+float zAngle = 0;
+vector<glm::vec3> mazePieces;
 
 struct VertexTextured {
 	float x, y, z;
@@ -140,50 +145,30 @@ static void error_callback(int error, const char* description) {
 //
 ////////////////////////////////////////////////////////////////////////////////
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-	float maxH = 3.0;
+	float maxH = .5;
 	if( (key == GLFW_KEY_ESCAPE || key == 'Q') && action == GLFW_PRESS )
 		glfwSetWindowShouldClose(window, GLFW_TRUE);
 
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		switch (key) {
 		case GLFW_KEY_UP:
-			if (platformVertices[0].y <= maxH) {
-				platformVertices[0].y += 1.0;
-				platformVertices[1].y += 1.0;
-			}
-			if (platformVertices[2].y >= -maxH) {
-				platformVertices[2].y -= 1.0;
-				platformVertices[3].y -= 1.0;
+			if (xAngle <= maxH) {
+				xAngle += .1;
 			}
 			break;
 		case GLFW_KEY_DOWN:
-			if (platformVertices[0].y >= -maxH) {
-				platformVertices[0].y -= 1.0;
-				platformVertices[1].y -= 1.0;
-			}
-			if (platformVertices[2].y <= maxH) {
-				platformVertices[2].y += 1.0;
-				platformVertices[3].y += 1.0;
+			if (xAngle >= -maxH) {
+				xAngle -= .1;
 			}
 			break;
 		case GLFW_KEY_LEFT:
-			if (platformVertices[0].y >= -maxH) {
-				platformVertices[0].y -= 1.0;
-				platformVertices[2].y -= 1.0;
-			}
-			if (platformVertices[1].y <= maxH) {
-				platformVertices[1].y += 1.0;
-				platformVertices[3].y += 1.0;
+			if (zAngle <= maxH) {
+				zAngle += .1;
 			}
 			break;
 		case GLFW_KEY_RIGHT:
-			if (platformVertices[1].y >= -maxH) {
-				platformVertices[1].y -= 1.0;
-				platformVertices[3].y -= 1.0;
-			}
-			if (platformVertices[0].y <= maxH) {
-				platformVertices[0].y += 1.0;
-				platformVertices[2].y += 1.0;
+			if (zAngle >= -maxH) {
+				zAngle -= .1;
 			}
 			break;
 		}
@@ -567,6 +552,25 @@ void populateMarbles() {
     }
 }
 
+void populateMaze() {
+	string line;
+	ifstream ipf("config.txt");
+	if (ipf.is_open()) {
+		int xLoc = -groundSize/2;
+		while (getline(ipf, line)) {
+			int zLoc = -groundSize/2;
+			for (int i = 0; i < line.size(); i++) {
+				if (line[i] == 'O') {
+					mazePieces.push_back(glm::vec3(-xLoc, 2, zLoc));
+				}
+				zLoc += groundSize/10;
+			}
+			xLoc += groundSize/10;
+		}
+	}
+	ipf.close();
+}
+
 //******************************************************************************
 //
 // Rendering / Drawing Functions - this is where the magic happens!
@@ -594,12 +598,24 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	}
 
 	glBindTexture( GL_TEXTURE_2D, platformTextureHandle );
-	glBindVertexArray( platformVAOd );
-	glDrawElements( GL_TRIANGLE_STRIP, 4, GL_UNSIGNED_SHORT, (void*)0 );
+	//rotate platform
+	m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	m = glm::scale(m, glm::vec3(groundSize, .5, groundSize));
+	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+	CSCI441::drawSolidCube(1);
 
-	glBindTexture( GL_TEXTURE_2D, brickTexHandle );
-	for( unsigned int i = 0; i < marbles.size(); i++ ) {
-			marbles[i]->draw( m, uniform_modelMtx_loc, uniform_color_loc );
+	//glBindTexture( GL_TEXTURE_2D, brickTexHandle );
+	//HERE IS WHERE WE DRAW THE OBSTACLEESSSSSS
+	for( unsigned int i = 0; i < mazePieces.size(); i++ ) {
+			m = glm::mat4(1.0);
+			m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
+			m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+			m = glm::translate(m, mazePieces[i]);
+			m = glm::translate(m, glm::vec3(groundSize/20, 0.0, groundSize / 20));
+			m = glm::scale(m, glm::vec3(groundSize/10, 3.0, groundSize/10));
+			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+			CSCI441::drawSolidCube(1);
 	}
 }
 
@@ -689,7 +705,7 @@ int main( int argc, char *argv[] ) {
 	setupShaders();										// load our shaders into memory
 	setupBuffers();										// load all our VAOs and VBOs into memory
 	setupTextures();									// load all textures into memory
-
+	populateMaze();
 	convertSphericalToCartesian();		// set up our camera position
 
 	CSCI441::setVertexAttributeLocations( attrib_vPos_loc, -1, attrib_vTextureCoord_loc );
