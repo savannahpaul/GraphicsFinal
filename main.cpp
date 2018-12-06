@@ -62,10 +62,12 @@ GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, unifo
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 std::vector< Marble* > marbles;
+Marble* user;
 GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
 glm::vec3 userPos;
+userDir = glm::vec3(1, 0, 0);
 
 float xAngle = 0;
 float zAngle = 0;
@@ -574,6 +576,7 @@ void populateMaze() {
 			xLoc += groundSize/10;
 		}
 	}
+	user = new Marble(userPos, userDir, 1.0);
 	ipf.close();
 }
 
@@ -626,7 +629,11 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 }
 
 void movePlayer() {
-
+	userDir = glm::rotate(userDir, xAngle, glm::vec3(1.0, 0.0, 0.0));
+	userDir = glm::rotate(userDir, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	if (xAngle == 0 && yAngle == 0) {
+		//do nothing
+	}
 
 }
 
