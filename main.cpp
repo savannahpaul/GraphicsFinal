@@ -54,6 +54,7 @@ glm::vec3 upVector(    0.0f,  1.0f,  0.0f );
 GLuint platformVAOd;
 GLuint platformTextureHandle;
 GLuint brickTexHandle;
+GLuint mazeTextureHandle;
 
 GLuint skyboxVAOds[6];						// all of our skybox VAOs
 GLuint skyboxHandles[6];                    // all of our skybox handles
@@ -63,9 +64,12 @@ GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, unifo
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 std::vector< Marble* > marbles;
+Marble* user;
 GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
+glm::vec3 userPos;
+userDir = glm::vec3(1, 0, 0);
 
 float xAngle = 0;
 float zAngle = 0;
@@ -290,7 +294,7 @@ GLFWwindow* setupGLFW() {
 	glfwWindowHint( GLFW_CONTEXT_VERSION_MINOR, 3 );		// request OpenGL 3.3 context
 
 	// create a window for a given size, with a given title
-	GLFWwindow *window = glfwCreateWindow(640, 480, "Lab11: Collision Detection", NULL, NULL);
+	GLFWwindow *window = glfwCreateWindow(640, 480, "Graphics Final: Labyrinth", NULL, NULL);
 	if( !window ) {						// if the window could not be created, NULL is returned
 		fprintf( stderr, "[ERROR]: GLFW Window could not be created\n" );
 		glfwTerminate();
@@ -358,6 +362,7 @@ void setupGLEW() {
 ////////////////////////////////////////////////////////////////////////////////
 void setupTextures() {
 	platformTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/grassblades.png" );
+	mazeTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/hedge.jpg");
 
 	// and get handles for our full skybox
   printf( "[INFO]: registering skybox..." );
@@ -565,11 +570,15 @@ void populateMaze() {
 				if (line[i] == 'O') {
 					mazePieces.push_back(glm::vec3(-xLoc, 2, zLoc));
 				}
+				if (line[i] == 'S') {
+					userPos = glm::vec3(-xLoc, 1, zLoc);
+				}
 				zLoc += groundSize/10;
 			}
 			xLoc += groundSize/10;
 		}
 	}
+	user = new Marble(userPos, userDir, 1.0);
 	ipf.close();
 }
 
@@ -607,7 +616,7 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
-	//glBindTexture( GL_TEXTURE_2D, brickTexHandle );
+	glBindTexture( GL_TEXTURE_2D, mazeTextureHandle );
 	//HERE IS WHERE WE DRAW THE OBSTACLEESSSSSS
 	for( unsigned int i = 0; i < mazePieces.size(); i++ ) {
 			m = glm::mat4(1.0);
@@ -621,74 +630,28 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	}
 }
 
-void moveMarbles() {
-	// TODO #1 move every ball forward along its heading
-	for (int i = 0; i < marbles.size(); i++) {
-		marbles[i]->moveForward();
+void movePlayer() {
+	userDir = glm::rotate(userDir, xAngle, glm::vec3(1.0, 0.0, 0.0));
+	userDir = glm::rotate(userDir, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	if (xAngle == 0 && yAngle == 0) {
+		//do nothing
 	}
+
 }
 
 void collideMarblesWithWall() {
-	// TODO #2 check if any ball passes beyond any wall
-	for (int i = 0; i < marbles.size(); i++) {
-		
-		if (marbles[i]->location.x >= groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(1, 0, 0))*glm::vec3(1, 0, 0);
-			marbles[i]->direction = newdir;
+	for (int i = 0; i < mazePieces.size(); i++) {
+		double distancex = abs(user->location.x - mazePieces.at(i).x);
+		double distancez = abs(user->location.z - mazePieces.at(i).z);
+		if (distancex <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
+			user->direction.x = 0;
 		}
-		if (marbles[i]->location.x <= -groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(-1, 0, 0))*glm::vec3(-1, 0, 0);
-			marbles[i]->direction = newdir;
+		if (distancey <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
+			user->direction.z = 0;
 		}
-		
-		if (marbles[i]->location.z <= -groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(0, 0, -1))*glm::vec3(0, 0, -1);
-			marbles[i]->direction = newdir;
-		}
-		
-		if (marbles[i]->location.z >= groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(0, 0, 1))*glm::vec3(0, 0, 1);
-			marbles[i]->direction = newdir;
-		}
-		
 	}
 }
 
-void collideMarblesWithEachother() {
-	// TODO #3
-	// check for interball collisions
-	// warning this isn't perfect...balls can get caught and
-	// continually bounce back-and-forth in place off
-	// each other
-
-	for (int i = 0; i < marbles.size(); i++) {
-		for (int j = 0; j < marbles.size(); j++) {
-			if (i == j) {
-				continue;
-			}else{
-			double distance = sqrt(pow(marbles[i]->location.x - marbles[j]->location.x, 2) + pow(marbles[i]->location.z - marbles[j]->location.z, 2));
-			if (distance <= (marbles[i]->radius + marbles[j]->radius)) {
-				marbles[i]->moveBackward();
-				marbles[j]->moveBackward();
-				//bounce marble 1
-				glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, (marbles[j]->location - marbles[i]->location))*(marbles[j]->location - marbles[i]->location);
-				glm::vec3 newdir2 = marbles[j]->direction - 2 * dot(marbles[j]->direction, (marbles[i]->location - marbles[j]->location))*(marbles[i]->location - marbles[j]->location);
-				marbles[i]->direction = newdir;
-				marbles[j]->direction = newdir2;
-				marbles[i]->moveForward();
-				marbles[j]->moveForward();
-			}
-			}
-
-		}
-	}
-
-
-}
 
 ///*****************************************************************************
 //
@@ -742,8 +705,8 @@ int main( int argc, char *argv[] ) {
 
 
 		if (viewOverlay) {
-			int overlayX = windowWidth - overlaySize;
-			int overlayY = windowHeight - overlaySize;
+			int overlayX = windowWidth - windowHeight / 10;
+			int overlayY = windowHeight - windowHeight / 10;
 
 			glEnable(GL_SCISSOR_TEST);
 			glScissor(overlayX, overlayY, overlaySize, overlaySize);
