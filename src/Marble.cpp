@@ -35,9 +35,13 @@ void Marble::draw( glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform
     CSCI441::drawSolidSphere( radius, 16, 16 );
 }
 
-void Marble::moveForward() {
-    location += direction*0.1f;
+void Marble::moveForward(float x, float z) {
+	location.x += x;
+	location.z += z;
+    //location += direction*0.1f;
     _rotation -= 0.1;
+	//direction.x = x;
+	//direction.z = z;
     if( _rotation < 0 ) {
         _rotation += 6.28;
     }

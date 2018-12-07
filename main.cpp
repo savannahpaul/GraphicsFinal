@@ -178,19 +178,19 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			//userDir.z = rotate.z;	
 			//user->direction = userDir;
 			break;
-		case GLFW_KEY_LEFT:
+		case GLFW_KEY_RIGHT:
 			if (zAngle <= maxH) {
 				zAngle += .1;
 			}
-			//rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+
 			//userDir.x = rotate.x;			
 			//user->direction = userDir;
 			break;
-		case GLFW_KEY_RIGHT:
+		case GLFW_KEY_LEFT:
 			if (zAngle >= -maxH) {
 				zAngle -= .1;
 			}
-			//rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+
 			//userDir.x = rotate.x;			
 			//user->direction = userDir;
 			break;
@@ -595,7 +595,7 @@ void populateMaze() {
 			xLoc += groundSize/10;
 		}
 	}
-	user = new Marble(userPos, userDir, 1.0);
+	user = new Marble(userPos, glm::vec3(1, 1, 1), 1.0);
 	ipf.close();
 }
 
@@ -633,9 +633,6 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
-	//update ball direction
-	if (abs(zAngle) > abs(xAngle)) user->direction = glm::vec3(acos(zAngle), -asin(zAngle), acos(xAngle));
-	else user->direction = glm::vec3(acos(zAngle), -asin(xAngle), acos(xAngle));
 
 	glBindTexture( GL_TEXTURE_2D, mazeTextureHandle );
 	//HERE IS WHERE WE DRAW THE OBSTACLEESSSSSS
@@ -649,18 +646,22 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
+
 	m = glm::mat4(1.0);
+	m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	m = glm::translate(m, user->location);
+	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
 	if (xAngle == 0 && zAngle == 0) {
-		//do nothing
+
 	}
 	else {
-		user->moveForward();
+		user->moveForward(-zAngle, xAngle);
 	}
-
 }
 
 void collideMarblesWithWall() {
@@ -675,7 +676,6 @@ void collideMarblesWithWall() {
 		}
 	}
 }
-
 
 ///*****************************************************************************
 //
@@ -725,6 +725,12 @@ int main( int argc, char *argv[] ) {
 
 		// draw everything to the window
 		// pass our view and projection matrices as well as deltaTime between frames
+
+		//move stuff
+
+		movePlayer();
+		collideMarblesWithWall();
+
 		renderScene( viewMatrix, projectionMatrix );
 
 
@@ -744,7 +750,6 @@ int main( int argc, char *argv[] ) {
 			renderScene(viewMtx, projectionMatrix);
 		}
 
-		movePlayer();
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
 
