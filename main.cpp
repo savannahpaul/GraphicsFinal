@@ -79,6 +79,7 @@ int levelNum = 2;
 double xAngle = 0;
 double zAngle = 0;
 vector<glm::vec3> mazePieces;
+bool isWon = false;
 
 struct VertexTextured {
 	float x, y, z;
@@ -699,6 +700,36 @@ void movePlayer() {
 	}
 }
 
+void collideWithMaze() {
+
+	glm::mat4 m = glm::mat4(1.0);
+	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
+	m = glm::translate(m, user->location);
+	glm::vec4 usrP = glm::vec4(user->location, 0);
+	glm::vec4 transUser = m * usrP;
+	
+	for (int i = 0; i < mazePieces.size(); i++) {
+		glm::mat4 m = glm::mat4(1.0);
+		m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+		m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
+		m = glm::translate(m, mazePieces[i]);
+		m = glm::scale(m, glm::vec3(groundSize / 10, 3.0, groundSize / 10));
+
+		glm::vec4 piecePos = glm::vec4(mazePieces[i], 0);
+		glm::vec4 transPos = m * piecePos;
+
+		double dist = sqrt(pow(transUser[0] - transPos[0], 2) + pow(transUser[1] - transPos[1], 2) + pow(transUser[2] - transPos[2], 2));
+		
+		if (dist <= 5.0) {
+			user->moveBackward();
+		}
+
+	}
+
+
+}
+
 void collideMarblesWithWall() {
 	// TODO #2 check if any ball passes beyond any wall
 	for (int i = 0; i < marbles.size(); i++) {
@@ -728,6 +759,12 @@ void collideMarblesWithWall() {
 		
 	}
 }
+
+void startNewLevel() {
+	setupTextures();
+	populateMaze();
+}
+
 
 ///*****************************************************************************
 //
@@ -796,7 +833,13 @@ int main( int argc, char *argv[] ) {
 			renderScene(viewMtx, projectionMatrix);
 		}
 
+		if (isWon) {
+			levelNum++;
+			startNewLevel();
+		}
+
 		movePlayer();
+		collideWithMaze();
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
 
