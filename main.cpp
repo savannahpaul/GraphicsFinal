@@ -802,19 +802,18 @@ int main( int argc, char *argv[] ) {
 
 
 		if (viewOverlay) {
-			int overlayX = windowWidth - windowHeight/5;
-			int overlayY = windowHeight - windowHeight/5;
+			int overlayX = windowWidth - overlaySize;
+			int overlayY = windowHeight - overlaySize;
 
 			glEnable(GL_SCISSOR_TEST);
-			glScissor(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
+			glScissor(overlayX, overlayY, overlaySize, overlaySize);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			glDisable(GL_SCISSOR_TEST);
 
-			glViewport(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
+			glViewport(overlayX, overlayY, overlaySize, overlaySize);
 
-			//glm::mat4 projMtx = glm::perspective(45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f);
-			// overhead camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,50,0), lookAtPoint, glm::vec3(1,0,0));
+			// First person camera view matrix
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 20, 0), lookAtPoint, glm::vec3(0, 0, 1));
 			renderScene(viewMtx, projectionMatrix);
 		}
 
