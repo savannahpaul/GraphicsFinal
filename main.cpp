@@ -26,6 +26,7 @@
 #include <stdio.h>				// for printf functionality
 #include <stdlib.h>				// for exit functionality
 
+#include <iostream>
 #include <vector>					// for vector
 #include <time.h>
 #include <CSCI441/objects3.hpp>
@@ -74,7 +75,7 @@ glm::vec3 userPos;
 glm::vec3 finishPos;
 glm::vec3 userDir = glm::vec3(0, 0, 0);
 glm::vec4 rotate;
-int levelNum = 2;
+int levelNum = 1;
 
 double xAngle = 0;
 double zAngle = 0;
@@ -166,7 +167,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 	if (action == GLFW_PRESS || action == GLFW_REPEAT) {
 		switch (key) {
-		case GLFW_KEY_UP:
+		case GLFW_KEY_LEFT:
 			if (xAngle <= maxH) {
 				xAngle += .1;
 			}
@@ -174,7 +175,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			//userDir.z = rotate.z;
 			//user->direction = userDir;
 			break;
-		case GLFW_KEY_DOWN:
+		case GLFW_KEY_RIGHT:
 			if (xAngle >= -maxH) {
 				xAngle -= .1;
 			}
@@ -182,19 +183,19 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 			//userDir.z = rotate.z;	
 			//user->direction = userDir;
 			break;
-		case GLFW_KEY_RIGHT:
+		case GLFW_KEY_UP:
 			if (zAngle <= maxH) {
 				zAngle += .1;
 			}
-			//rotate = glm::rotate(glm::mat4(), zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+
 			//userDir.x = rotate.x;			
 			//user->direction = userDir;
 			break;
-		case GLFW_KEY_LEFT:
+		case GLFW_KEY_DOWN:
 			if (zAngle >= -maxH) {
 				zAngle -= .1;
 			}
-			//rotate = glm::rotate(glm::mat4(), -zAngle, glm::vec3(1.0, 0.0, 0.0))*glm::vec4(plainDir, 0);
+
 			//userDir.x = rotate.x;			
 			//user->direction = userDir;
 			break;
@@ -601,18 +602,18 @@ void populateMaze() {
 	string line;
 	ifstream ipf("config.txt");
 	if (ipf.is_open()) {
-		int xLoc = -groundSize/2;
+		double xLoc = -groundSize/2;
 		while (getline(ipf, line)) {
-			int zLoc = -groundSize/2;
+			double zLoc = -groundSize/2;
 			for (int i = 0; i < line.size(); i++) {
 				if (line[i] == 'O') {
-					mazePieces.push_back(glm::vec3(-xLoc + (groundSize/20), 2, zLoc + (groundSize/20)));
+					mazePieces.push_back(glm::vec3(-xLoc - groundSize / 20 , 2, zLoc + groundSize / 20));
 				}
 				if (line[i] == 'S') {
 					userPos = glm::vec3(-xLoc, 1, zLoc);
 				}
 				if (line[i] == 'F') {
-					finishPos = glm::vec3(-xLoc, .5, zLoc);
+					finishPos = glm::vec3(-xLoc - groundSize / 10, .5, zLoc);
 				}
 				zLoc += groundSize/10;
 			}
@@ -657,15 +658,17 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
+
 	glBindTexture( GL_TEXTURE_2D, mazeTextureHandle );
 	//Draw the obstacles/maze
 	for( unsigned int i = 0; i < mazePieces.size(); i++ ) {
-			m = glm::mat4(1.0);
+			m = glm::mat4();
 			m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
 			m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
 			m = glm::translate(m, mazePieces[i]);
-			//m = glm::translate(m, glm::vec3(groundSize/20, 0.0, groundSize / 20));
-			m = glm::scale(m, glm::vec3(groundSize/10, 3.0, groundSize/10));
+		//	m = glm::translate(m, glm::vec3(groundSize / 20, 0.0, groundSize / 20));
+			m = glm::scale(m, glm::vec3(groundSize / 10, 3.0, groundSize / 10));
+
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
@@ -681,11 +684,13 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
-	//Draw the plauer
+	//Draw the player
 	m = glm::mat4(1.0);
+
 	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
 	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
-	m = glm::translate(m, user->location);
+	glm::vec3 loc = glm::vec3(user->location.x / groundSize, user->location.y / groundSize, user->location.z / groundSize);
+	m = glm::translate(m, loc);
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
@@ -700,69 +705,43 @@ void movePlayer() {
 	}
 }
 
-void collideWithMaze() {
 
-	glm::mat4 m = glm::mat4(1.0);
-	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
-	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
-	m = glm::translate(m, user->location);
-	glm::vec4 usrP = glm::vec4(user->location, 0);
-	glm::vec4 transUser = m * usrP;
-	
+void collideAndMove() {
+	float x = xAngle;
+	float z = zAngle;
 	for (int i = 0; i < mazePieces.size(); i++) {
-		glm::mat4 m = glm::mat4(1.0);
-		m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
-		m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
-		m = glm::translate(m, mazePieces[i]);
-		m = glm::scale(m, glm::vec3(groundSize / 10, 3.0, groundSize / 10));
-
-		glm::vec4 piecePos = glm::vec4(mazePieces[i], 0);
-		glm::vec4 transPos = m * piecePos;
-
-		double dist = sqrt(pow(transUser[0] - transPos[0], 2) + pow(transUser[1] - transPos[1], 2) + pow(transUser[2] - transPos[2], 2));
-		
-		if (dist <= 5.0) {
-			user->moveBackward();
+		double distancex  = abs(user->location.x - zAngle - mazePieces.at(i).x);
+		double distancez  = abs(user->location.z + xAngle - mazePieces.at(i).z);
+		if ((distancex <= user->radius + groundSize / 20) && ((user->location.z <= mazePieces.at(i).z + groundSize / 20) && (user->location.z >= mazePieces.at(i).z - groundSize / 20))) {	//cube length from center to any side is groundLength / 20
+			z = 0;
+			//cout << "collidez" << endl;
 		}
-
+		if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= mazePieces.at(i).x + groundSize / 20) && (user->location.x >= mazePieces.at(i).x - groundSize / 20))) {	//cube length from center to any side is groundLength / 20
+			x = 0;
+			//debugging stuff
+			//cout << "collidex" << endl << distancez << endl << user->radius + groundSize / 20 << endl;
+			//cout << i << " " << mazePieces.at(i).x << " " << mazePieces.at(i).z << endl;
+			//cout << " " << user->location.x - zAngle << " " << user->location.z + xAngle << endl;
+			//cout << mazePieces.at(i).x + groundSize / 20 << " " << mazePieces.at(i).x - groundSize / 20 << endl;
+			//cout << mazePieces.at(i).z + groundSize / 20 << " " << mazePieces.at(i).z - groundSize / 20 << endl;
+		}
 	}
-
-
-}
-
-void collideMarblesWithWall() {
-	// TODO #2 check if any ball passes beyond any wall
-	for (int i = 0; i < marbles.size(); i++) {
-		
-		if (marbles[i]->location.x >= groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(1, 0, 0))*glm::vec3(1, 0, 0);
-			marbles[i]->direction = newdir;
-		}
-		if (marbles[i]->location.x <= -groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(-1, 0, 0))*glm::vec3(-1, 0, 0);
-			marbles[i]->direction = newdir;
-		}
-		
-		if (marbles[i]->location.z <= -groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(0, 0, -1))*glm::vec3(0, 0, -1);
-			marbles[i]->direction = newdir;
-		}
-		
-		if (marbles[i]->location.z >= groundSize) {
-			marbles[i]->moveBackward();
-			glm::vec3 newdir = marbles[i]->direction - 2 * dot(marbles[i]->direction, glm::vec3(0, 0, 1))*glm::vec3(0, 0, 1);
-			marbles[i]->direction = newdir;
-		}
-		
+	double distancex = abs(user->location.x - zAngle - finishPos.x);
+	double distancez = abs(user->location.z + xAngle - finishPos.z);
+	//finish point collision detection
+	if ((distancex <= user->radius + groundSize / 20) && ((user->location.z <= finishPos.z + groundSize / 20) && (user->location.z >= finishPos.z - groundSize / 20))) {
+		isWon = true;
 	}
+	if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= finishPos.x + groundSize / 20) && (user->location.x >= finishPos.x - groundSize / 20))) {
+		isWon = true;
+	}
+	user->moveForward(-z, x);
 }
 
 void startNewLevel() {
 	setupTextures();
 	populateMaze();
+	isWon = false;
 }
 
 
@@ -814,32 +793,38 @@ int main( int argc, char *argv[] ) {
 
 		// draw everything to the window
 		// pass our view and projection matrices as well as deltaTime between frames
+
+		//move stuff
+
+		collideAndMove();
+		//cout << user->location.x << " " << user->location.z << endl;		//outputs current user location for debugging
 		renderScene( viewMatrix, projectionMatrix );
 
 
 		if (viewOverlay) {
-			int overlayX = windowWidth - overlaySize;
-			int overlayY = windowHeight - overlaySize;
+			int overlayX = windowWidth - windowHeight/5;
+			int overlayY = windowHeight - windowHeight/5;
 
 			glEnable(GL_SCISSOR_TEST);
-			glScissor(overlayX, overlayY, overlaySize, overlaySize);
+			glScissor(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			glDisable(GL_SCISSOR_TEST);
 
-			glViewport(overlayX, overlayY, overlaySize, overlaySize);
+			glViewport(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
 
-			// First person camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,20,0),lookAtPoint, glm::vec3(0,0,1));
+			//glm::mat4 projMtx = glm::perspective(45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f);
+			// overhead camera view matrix
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,50,0), lookAtPoint, glm::vec3(1,0,0));
 			renderScene(viewMtx, projectionMatrix);
 		}
+
 
 		if (isWon) {
 			levelNum++;
 			startNewLevel();
 		}
 
-		movePlayer();
-		collideWithMaze();
+
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
 
