@@ -580,9 +580,9 @@ void populateMaze() {
 	string line;
 	ifstream ipf("config.txt");
 	if (ipf.is_open()) {
-		int xLoc = -groundSize/2;
+		double xLoc = -groundSize/2;
 		while (getline(ipf, line)) {
-			int zLoc = -groundSize/2;
+			double zLoc = -groundSize/2;
 			for (int i = 0; i < line.size(); i++) {
 				if (line[i] == 'O') {
 					mazePieces.push_back(glm::vec3(-xLoc, 2, zLoc));
@@ -664,17 +664,27 @@ void movePlayer() {
 	}
 }
 
-void collideMarblesWithWall() {
+void collideAndMove() {
+	float x = xAngle;
+	float z = zAngle;
 	for (int i = 0; i < mazePieces.size(); i++) {
 		double distancex = abs(user->location.x - mazePieces.at(i).x);
 		double distancez = abs(user->location.z - mazePieces.at(i).z);
-		if (distancex <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
-			user->direction.x = 0;
+		if ((distancex <= user->radius + groundSize / 20) && ((user->location.z <= mazePieces.at(i).z + groundSize / 20) && (user->location.z >= mazePieces.at(i).z - groundSize / 20))) {	//cube length from center to any side is groundLength / 20
+			x = 0;
+			cout << "collidez" << endl;
+			user->moveBackward(0, xAngle);
 		}
-		if (distancez <= user->radius + groundSize / 20) {	//cube length from center to any side is groundLength / 20
-			user->direction.z = 0;
+		if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= mazePieces.at(i).x + groundSize / 20) && (user->location.x >= mazePieces.at(i).x - groundSize / 20))) {	//cube length from center to any side is groundLength / 20
+			z = 0;
+			user->moveBackward(-zAngle, 0);
+			cout << "collidex" << endl << distancez << endl << user->radius + groundSize / 20 << endl;
+			cout << i << " " << mazePieces.at(i).x << " " << mazePieces.at(i).z << endl;
+			cout << " " << user->location.x << " " << user->location.z << endl;
+			cout << mazePieces.at(i).x + groundSize / 20 << " " << mazePieces.at(i).x - groundSize / 20 << endl;
 		}
 	}
+	user->moveForward(-z, x);
 }
 
 ///*****************************************************************************
@@ -728,8 +738,7 @@ int main( int argc, char *argv[] ) {
 
 		//move stuff
 
-		movePlayer();
-		collideMarblesWithWall();
+		collideAndMove();
 
 		renderScene( viewMatrix, projectionMatrix );
 

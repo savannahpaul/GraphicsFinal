@@ -20,7 +20,7 @@ public:
 
   void draw( glm::mat4 modelMtx, GLint uniform_modelMtx_loc, GLint uniform_color_loc );
   void moveForward(float x, float z);
-  void moveBackward();
+  void moveBackward(float x, float z);
 
 private:
   glm::vec3 _color;

@@ -47,7 +47,7 @@ void Marble::moveForward(float x, float z) {
     }
 }
 
-void Marble::moveBackward() {
+void Marble::moveBackward(float x, float z) {
     location -= direction*0.1f;
     _rotation += 0.1;
     if( _rotation > 6.28 ) {
