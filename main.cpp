@@ -32,6 +32,8 @@
 #include <CSCI441/ShaderProgram3.hpp>
 #include <CSCI441/TextureUtils.hpp>
 #include <sstream>
+#include <iostream>
+#include <stdlib.h>
 
 #include "include/Marble.h"
 
@@ -53,7 +55,7 @@ glm::vec3 upVector(    0.0f,  1.0f,  0.0f );
 
 GLuint platformVAOd;
 GLuint platformTextureHandle;
-GLuint brickTexHandle;
+GLuint finishTextureHandle;
 GLuint mazeTextureHandle;
 
 GLuint skyboxVAOds[6];						// all of our skybox VAOs
@@ -69,11 +71,13 @@ GLfloat groundSize = 30;
 GLfloat marbleRadius = 1.0;
 GLint numMarbles = 13;
 glm::vec3 userPos;
+glm::vec3 finishPos;
 glm::vec3 userDir = glm::vec3(0, 0, 0);
 glm::vec4 rotate;
+int levelNum = 2;
 
-float xAngle = 0;
-float zAngle = 0;
+double xAngle = 0;
+double zAngle = 0;
 vector<glm::vec3> mazePieces;
 
 struct VertexTextured {
@@ -377,25 +381,42 @@ void setupGLEW() {
 //
 ////////////////////////////////////////////////////////////////////////////////
 void setupTextures() {
-	platformTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/grassblades.png" );
-	mazeTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/hedge.jpg");
-
 	// and get handles for our full skybox
   printf( "[INFO]: registering skybox..." );
   fflush( stdout );
-  skyboxHandles[0] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/back.png"   );   printf( "." ); fflush( stdout );
-  skyboxHandles[1] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/left.png"  );   printf( "." ); fflush( stdout );
-  skyboxHandles[2] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/front.png"  );   printf( "." ); fflush( stdout );
-  skyboxHandles[3] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/right.png"   );   printf( "." ); fflush( stdout );
-  skyboxHandles[4] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/bottom.png" );		printf( "." ); fflush( stdout );
-  skyboxHandles[5] = CSCI441::TextureUtils::loadAndRegisterTexture( "textures/skybox/top.png"    );   printf( "." ); fflush( stdout );
-  printf( "skybox textures read in and registered!\n\n" );
+  if (levelNum == 1) {
+	  platformTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/grassblades.png");
+	  mazeTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/hedge.jpg");
 
-	unsigned char *brickTexData;
-	int brickTexWidth, brickTexHeight;
-	CSCI441::TextureUtils::loadPPM("textures/brick.ppm", brickTexWidth, brickTexHeight, brickTexData);
-	registerOpenGLTexture(brickTexData, brickTexWidth, brickTexHeight, brickTexHandle);
-	printf( "[INFO]: brick texture read in and registered\n" );
+	  skyboxHandles[0] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/back.png");   printf("."); fflush(stdout);
+	  skyboxHandles[1] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/left.png");   printf("."); fflush(stdout);
+	  skyboxHandles[2] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/front.png");   printf("."); fflush(stdout);
+	  skyboxHandles[3] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/right.png");   printf("."); fflush(stdout);
+	  skyboxHandles[4] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/bottom.png");		printf("."); fflush(stdout);
+	  skyboxHandles[5] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox/top.png");   printf("."); fflush(stdout);
+	  printf("skybox textures read in and registered!\n\n");
+
+	  unsigned char *brickTexData;
+	  int brickTexWidth, brickTexHeight;
+	  CSCI441::TextureUtils::loadPPM("textures/brick.ppm", brickTexWidth, brickTexHeight, brickTexData);
+	  registerOpenGLTexture(brickTexData, brickTexWidth, brickTexHeight, finishTextureHandle);
+	  printf("[INFO]: brick texture read in and registered\n");
+  }
+  else if (levelNum == 2) {
+	  platformTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/lavastone.png");
+	  mazeTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/metal.jpg");
+
+	  skyboxHandles[0] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/back.tga");   printf("."); fflush(stdout);
+	  skyboxHandles[1] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/left.tga");   printf("."); fflush(stdout);
+	  skyboxHandles[2] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/front.tga");   printf("."); fflush(stdout);
+	  skyboxHandles[3] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/right.tga");   printf("."); fflush(stdout);
+	  skyboxHandles[4] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/bottom.tga");		printf("."); fflush(stdout);
+	  skyboxHandles[5] = CSCI441::TextureUtils::loadAndRegisterTexture("textures/skybox2/top.tga");   printf("."); fflush(stdout);
+	  printf("skybox textures read in and registered!\n\n");
+
+	  finishTextureHandle = CSCI441::TextureUtils::loadAndRegisterTexture("textures/grassblades.png");
+  }
+
 }
 
 void setupShaders() {
@@ -584,10 +605,13 @@ void populateMaze() {
 			int zLoc = -groundSize/2;
 			for (int i = 0; i < line.size(); i++) {
 				if (line[i] == 'O') {
-					mazePieces.push_back(glm::vec3(-xLoc, 2, zLoc));
+					mazePieces.push_back(glm::vec3(-xLoc + (groundSize/20), 2, zLoc + (groundSize/20)));
 				}
 				if (line[i] == 'S') {
 					userPos = glm::vec3(-xLoc, 1, zLoc);
+				}
+				if (line[i] == 'F') {
+					finishPos = glm::vec3(-xLoc, .5, zLoc);
 				}
 				zLoc += groundSize/10;
 			}
@@ -625,37 +649,50 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	}
 
 	glBindTexture( GL_TEXTURE_2D, platformTextureHandle );
-	//rotate platform
-	m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
-	m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	//Rotate platform
+	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
 	m = glm::scale(m, glm::vec3(groundSize, .5, groundSize));
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	CSCI441::drawSolidCube(1);
 
 	glBindTexture( GL_TEXTURE_2D, mazeTextureHandle );
-	//HERE IS WHERE WE DRAW THE OBSTACLEESSSSSS
+	//Draw the obstacles/maze
 	for( unsigned int i = 0; i < mazePieces.size(); i++ ) {
 			m = glm::mat4(1.0);
-			m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
-			m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+			m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+			m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
 			m = glm::translate(m, mazePieces[i]);
-			m = glm::translate(m, glm::vec3(groundSize/20, 0.0, groundSize / 20));
+			//m = glm::translate(m, glm::vec3(groundSize/20, 0.0, groundSize / 20));
 			m = glm::scale(m, glm::vec3(groundSize/10, 3.0, groundSize/10));
 			glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 			CSCI441::drawSolidCube(1);
 	}
 
+	//Draw finish marker
+	glBindTexture(GL_TEXTURE_2D, finishTextureHandle);
 	m = glm::mat4(1.0);
-	m = glm::rotate(m, xAngle, glm::vec3(1.0, 0.0, 0.0));
-	m = glm::rotate(m, zAngle, glm::vec3(0.0, 0.0, 1.0));
+	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
+	m = glm::translate(m, finishPos);
+	m = glm::translate(m, glm::vec3(groundSize / 20, 0.0, groundSize / 20));
+	m = glm::scale(m, glm::vec3(groundSize / 10, 0.0, groundSize / 10));
+	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+	CSCI441::drawSolidCube(1);
+
+	//Draw the plauer
+	m = glm::mat4(1.0);
+	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
 	m = glm::translate(m, user->location);
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
+	double tol = 10 ^ -5;
 	if (xAngle == 0 && zAngle == 0) {
-
+		//don't move
 	}
 	else {
 		user->moveForward(-zAngle, xAngle);
