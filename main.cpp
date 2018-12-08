@@ -81,6 +81,7 @@ double xAngle = 0;
 double zAngle = 0;
 vector<glm::vec3> mazePieces;
 bool isWon = false;
+bool isLost = false;
 
 struct VertexTextured {
 	float x, y, z;
@@ -685,14 +686,17 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	CSCI441::drawSolidCube(1);
 
 	//Draw the player
-	m = glm::mat4(1.0);
+	if (isDead) {
+		//use new program
+	}
+		m = glm::mat4(1.0);
 
-	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
-	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
-	glm::vec3 loc = glm::vec3(user->location.x / groundSize, user->location.y / groundSize, user->location.z / groundSize);
-	m = glm::translate(m, loc);
-	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
-	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
+		m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
+		m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
+		glm::vec3 loc = glm::vec3(user->location.x / groundSize, user->location.y / groundSize, user->location.z / groundSize);
+		m = glm::translate(m, loc);
+		glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+		user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
@@ -734,6 +738,12 @@ void collideAndMove() {
 	}
 	if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= finishPos.x + groundSize / 20) && (user->location.x >= finishPos.x - groundSize / 20))) {
 		isWon = true;
+	}
+
+	//edge collision
+	if (user->location.x < -groundSize / 2 || user->location.z < -groundSize / 2
+		|| user->location.x > groundSize / 2 || user->location.z > groundSize / 2) {
+		isLost = true;
 	}
 	user->moveForward(-z, x);
 }
@@ -813,7 +823,7 @@ int main( int argc, char *argv[] ) {
 			glViewport(overlayX, overlayY, overlaySize, overlaySize);
 
 			// First person camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 20, 0), lookAtPoint, glm::vec3(0, 0, 1));
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 30, 0), lookAtPoint, glm::vec3(-1, 0, 0));
 			renderScene(viewMtx, projectionMatrix);
 		}
 
