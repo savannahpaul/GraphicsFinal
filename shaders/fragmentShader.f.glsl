@@ -10,7 +10,6 @@
 uniform float matShine = 80;
 uniform mat4 modelMatrix;
 uniform vec3 matSpecColor = vec3(1.0, 1.0, 1.0);
-uniform vec3 cameraPos;
 uniform sampler2D texSampler;
 
 // for lighting
@@ -25,6 +24,7 @@ uniform struct Light {
 in vec4 fragCoord;
 in vec4 fragNormal;
 in vec2 fragTexCoord;
+in vec3 fragCameraPos;
 
 // final color
 out vec4 fragColorOut;
@@ -37,7 +37,7 @@ void main() {
 	vec4 surfaceColor = texture(texSampler, fragTexCoord);
 	if (surfaceColor.x == 0 && surfaceColor.y == 0 && surfaceColor.z == 0) surfaceColor += baseColor;
 	vec3 surfaceToLight = normalize(light.position - surfacePos);
-	vec3 surfaceToCamera = normalize(cameraPos - surfacePos);
+	vec3 surfaceToCamera = normalize(fragCameraPos - surfacePos);
 
 	// ambient
 	vec3 ambient = light.ambientCoefficient * surfaceColor.rgb * light.intensities;

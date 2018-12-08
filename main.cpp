@@ -69,11 +69,18 @@ struct Light {
    float ambientCoefficient;
 };
 
+CSCI441::ShaderProgram* customShaderProgram = NULL;
+
 CSCI441::ShaderProgram* textureShaderProgram = NULL;
 GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, uniform_color_loc;
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 CSCI441::ShaderProgram* phongShaderProgram = NULL;
+
+GLuint shaderProgramHandle = 0;
+GLint mvp_uniform_location = -1, time_uniform_location = -1;
+GLint vpos_attrib_location = -1;
+
 std::vector< Marble* > marbles;
 Marble* user;
 GLfloat groundSize = 30;
@@ -83,11 +90,14 @@ glm::vec3 userPos;
 glm::vec3 finishPos;
 glm::vec3 userDir = glm::vec3(0, 0, 0);
 glm::vec4 rotate;
-int levelNum = 2;
+int levelNum = 1;
 
 double xAngle = 0;
 double zAngle = 0;
 vector<glm::vec3> mazePieces;
+bool isWon = false;
+bool isLost = false;
+bool isDead = false;
 
 struct VertexTextured {
 	float x, y, z;
@@ -105,21 +115,21 @@ GLint light_attenuation_uniform_location = -1;
 GLint light_ambientCoeff_uniform_location = -1;
 
 // attrib locs
-GLint vpos_attrib_location = -1;
+GLint vPos_attrib_location = -1;
 GLint norm_attrib_location = -1;
 GLint texel_attrib_location = -1;
+GLint camera_attrib_location = -1;
 
 // uniform locs
 GLint mv_uniform_location = -1;
 GLint model_uniform_location = -1;
-GLint camera_uniform_location = -1;
 GLint texture_uniform_location = -1;
 
 VertexTextured platformVertices[4] = {
-	{ -platformSize, backY, -platformSize,   0.0f,  0.0f }, // 0 - BL
-	{ platformSize, backY, -platformSize,   1.0f,  0.0f }, // 1 - BR
+	{ -platformSize,  backY, -platformSize,   0.0f,  0.0f }, // 0 - BL
+	{  platformSize,  backY, -platformSize,   1.0f,  0.0f }, // 1 - BR
 	{ -platformSize, frontY,  platformSize,   0.0f,  1.0f }, // 2 - TL
-	{ platformSize, frontY,  platformSize,   1.0f,  1.0f }  // 3 - TR
+	{  platformSize, frontY,  platformSize,   1.0f,  1.0f }  // 3 - TR
 };
 
 //******************************************************************************
@@ -459,13 +469,13 @@ void setupShaders() {
 	// uniforms
 	mv_uniform_location      = phongShaderProgram->getUniformLocation( "mvMatrix"    ); 
 	model_uniform_location   = phongShaderProgram->getUniformLocation( "modelMatrix" );
-	camera_uniform_location  = phongShaderProgram->getUniformLocation( "cameraPos"   );
 	texture_uniform_location = phongShaderProgram->getUniformLocation( "texSampler"  );
 	
 	// attribs
-	vpos_attrib_location  = phongShaderProgram->getAttributeLocation( "vertCoord"  );
-	norm_attrib_location  = phongShaderProgram->getAttributeLocation( "vertNormal" );
-	texel_attrib_location = phongShaderProgram->getAttributeLocation( "texCoord"   );
+	vPos_attrib_location   = phongShaderProgram->getAttributeLocation( "vertCoord"       );
+	norm_attrib_location   = phongShaderProgram->getAttributeLocation( "vertNormal"      );
+	texel_attrib_location  = phongShaderProgram->getAttributeLocation( "texCoord"        );
+	camera_attrib_location = phongShaderProgram->getAttributeLocation( "cameraPosition"  );
 }
 
 
@@ -477,7 +487,15 @@ void setupSkyboxShaders() {
 	uniform_color_loc			 = textureShaderProgram->getUniformLocation( "color" );
 	attrib_vPos_loc			     = textureShaderProgram->getAttributeLocation( "vPos" );
 	attrib_vTextureCoord_loc 	 = textureShaderProgram->getAttributeLocation( "vTextureCoord" );
+
+	//set up death shader program
+	customShaderProgram = new CSCI441::ShaderProgram("shaders/customShader.v.glsl", "shaders/customShader.f.glsl");
+	mvp_uniform_location  = customShaderProgram->getUniformLocation("mvpMatrix");
+	time_uniform_location = customShaderProgram->getUniformLocation("time");
+	vpos_attrib_location  = customShaderProgram->getAttributeLocation("vPosition");
+
 }
+
 
 // setupBuffers() //////////////////////////////////////////////////////////////
 //
@@ -672,19 +690,10 @@ void populateMaze() {
 	ipf.close();
 }
 
-//******************************************************************************
-//
-// Rendering / Drawing Functions - this is where the magic happens!
-
-// renderScene() ///////////////////////////////////////////////////////////////
-//
-//		This method will contain all of the objects to be drawn.
-//
-////////////////////////////////////////////////////////////////////////////////
-void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
+void drawSkybox(glm::mat4 viewMtx, glm::mat4 projMtx) {
 	textureShaderProgram->useProgram();
 
-	glm::mat4 m, vp = projectionMatrix * viewMatrix;
+	glm::mat4 m, vp = projMtx * viewMtx;
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 	glUniformMatrix4fv(uniform_viewProjetionMtx_loc, 1, GL_FALSE, &vp[0][0]);
 	glUniform1ui(uniform_tex_loc, GL_TEXTURE0);
@@ -700,20 +709,38 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	}
 	glDepthMask(GL_TRUE);
 
+}
+
+//******************************************************************************
+//
+// Rendering / Drawing Functions - this is where the magic happens!
+
+// renderScene() ///////////////////////////////////////////////////////////////
+//
+//		This method will contain all of the objects to be drawn.
+//
+////////////////////////////////////////////////////////////////////////////////
+void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
+	drawSkybox(viewMatrix, projectionMatrix);
+	
 	Light light0;
 	light0.position = glm::vec3(500,500,500); // taste the sun!
 	light0.intensities = glm::vec3(10000.0f, 10000.0f, 10000.0f);
 	light0.attenuation = 0.2f;
 	light0.ambientCoefficient = 0.0f;
 	
+	glm::mat4 m;
+
 	phongShaderProgram->useProgram();
+
 	glBindTexture( GL_TEXTURE_2D, platformTextureHandle );
 	//Rotate platform
 	m = glm::rotate(m, float(xAngle), glm::vec3(1.0, 0.0, 0.0));
 	m = glm::rotate(m, float(zAngle), glm::vec3(0.0, 0.0, 1.0));
 	m = glm::scale(m, glm::vec3(groundSize, .5, groundSize));
+	glm::mat4 mvMtx = projectionMatrix * viewMatrix * m;
+	glUniformMatrix4fv(mv_uniform_location, 1, GL_FALSE, &mvMtx[0][0]);
 	glUniformMatrix4fv(model_uniform_location, 1, GL_FALSE, &m[0][0]);
-	glUniform1f(texture_uniform_location, platformTextureHandle);
 	CSCI441::setVertexAttributeLocations( vpos_attrib_location, norm_attrib_location, texel_attrib_location );
 	CSCI441::drawSolidCube(1);
 
@@ -727,7 +754,8 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 			m = glm::translate(m, mazePieces[i]);
 		//	m = glm::translate(m, glm::vec3(groundSize / 20, 0.0, groundSize / 20));
 			m = glm::scale(m, glm::vec3(groundSize / 10, 3.0, groundSize / 10));
-			glUniform1f(texture_uniform_location, mazeTextureHandle);
+			mvMtx = projectionMatrix * viewMatrix * m;
+			glUniformMatrix4fv(mv_uniform_location, 1, GL_FALSE, &mvMtx[0][0]);
 			glUniformMatrix4fv(model_uniform_location, 1, GL_FALSE, &m[0][0]);
 			CSCI441::setVertexAttributeLocations( vpos_attrib_location, norm_attrib_location, texel_attrib_location );
 			CSCI441::drawSolidCube(1);
@@ -741,12 +769,18 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	m = glm::translate(m, finishPos);
 	m = glm::translate(m, glm::vec3(groundSize / 20, 0.0, groundSize / 20));
 	m = glm::scale(m, glm::vec3(groundSize / 10, 0.0, groundSize / 10));
+	mvMtx = projectionMatrix * viewMatrix * m;
+	glUniformMatrix4fv(mv_uniform_location, 1, GL_FALSE, &mvMtx[0][0]);
 	glUniformMatrix4fv(model_uniform_location, 1, GL_FALSE, &m[0][0]);
-	glUniform1f(texture_uniform_location, finishTextureHandle);
 	CSCI441::setVertexAttributeLocations( vpos_attrib_location, norm_attrib_location, texel_attrib_location );
 			
 	CSCI441::drawSolidCube(1);
 
+	glUniform3f(light_position_uniform_location, light0.position.x, light0.position.y, light0.position.z);
+	glUniform3f(light_intensities_uniform_location, light0.intensities.x, light0.intensities.y, light0.intensities.z);
+	glUniform1f(light_attenuation_uniform_location, light0.attenuation);
+	glUniform1f(light_ambientCoeff_uniform_location, light0.ambientCoefficient);
+	
 	//Draw the player
 	m = glm::mat4(1.0);
 
@@ -756,6 +790,18 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	m = glm::translate(m, loc);
 	glUniformMatrix4fv(model_uniform_location, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, model_uniform_location, uniform_color_loc);
+
+	if (isDead) {
+		glUseProgram(shaderProgramHandle);
+		glm::mat4 mvpMtx = projectionMatrix * viewMatrix;
+		glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
+		glUniform1f(time_uniform_location, glfwGetTime());
+	}
+	
+
+	
+
+	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
 void movePlayer() {
@@ -767,6 +813,7 @@ void movePlayer() {
 		user->moveForward(-zAngle, xAngle);
 	}
 }
+
 
 void collideAndMove() {
 	float x = xAngle;
@@ -792,11 +839,26 @@ void collideAndMove() {
 	double distancez = abs(user->location.z + xAngle - finishPos.z);
 	//finish point collision detection
 	if ((distancex <= user->radius + groundSize / 20) && ((user->location.z <= finishPos.z + groundSize / 20) && (user->location.z >= finishPos.z - groundSize / 20))) {
+		isWon = true;
 	}
 	if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= finishPos.x + groundSize / 20) && (user->location.x >= finishPos.x - groundSize / 20))) {
+		isWon = true;
+	}
+
+	//edge collision
+	if (user->location.x < -groundSize / 2 || user->location.z < -groundSize / 2
+		|| user->location.x > groundSize / 2 || user->location.z > groundSize / 2) {
+		isLost = true;
 	}
 	user->moveForward(-z, x);
 }
+
+void startNewLevel() {
+	setupTextures();
+	populateMaze();
+	isWon = false;
+}
+
 
 ///*****************************************************************************
 //
@@ -845,7 +907,7 @@ int main( int argc, char *argv[] ) {
 
 		// set up our look at matrix to position our camera
 		glm::mat4 viewMatrix = glm::lookAt( eyePoint,lookAtPoint, upVector );
-		glUniform3f(camera_uniform_location, eyePoint.x, eyePoint.y, eyePoint.z);
+		glUniform3f(camera_attrib_location, eyePoint.x, eyePoint.y, eyePoint.z);
 	
 		// draw everything to the window
 		// pass our view and projection matrices as well as deltaTime between frames
@@ -859,21 +921,27 @@ int main( int argc, char *argv[] ) {
 
 
 		if (viewOverlay) {
-			int overlayX = windowWidth - windowHeight / 5;
-			int overlayY = windowHeight - windowHeight / 5;
+			int overlayX = windowWidth - overlaySize;
+			int overlayY = windowHeight - overlaySize;
 
 			glEnable(GL_SCISSOR_TEST);
-			glScissor(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
+			glScissor(overlayX, overlayY, overlaySize, overlaySize);
 			glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 			glDisable(GL_SCISSOR_TEST);
 
-			glViewport(overlayX, overlayY, overlaySize * 2, overlaySize * 2);
+			glViewport(overlayX, overlayY, overlaySize, overlaySize);
 
-			glm::mat4 projMtx = glm::perspective(45.0f, (GLfloat)windowWidth / (GLfloat)windowHeight, 0.001f, 1000.0f);
-			// overhead camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0,50,0), lookAtPoint, glm::vec3(1,0,0));
-			renderScene(viewMtx, projMtx);
+			// First person camera view matrix
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 30, 0), lookAtPoint, glm::vec3(-1, 0, 0));
+			renderScene(viewMtx, projectionMatrix);
 		}
+
+
+		if (isWon) {
+			levelNum++;
+			startNewLevel();
+		}
+
 
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen
