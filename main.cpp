@@ -86,6 +86,7 @@ double xAngle = 0;
 double zAngle = 0;
 vector<glm::vec3> mazePieces;
 bool isWon = false;
+bool isLost = false;
 
 struct VertexTextured {
 	float x, y, z;
@@ -706,7 +707,7 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	m = glm::translate(m, loc);
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
 
-	if (isLost) {
+	if (isDead) {
 		glUseProgram(shaderProgramHandle);
 		glm::mat4 mvpMtx = projectionMatrix * viewMatrix;
 		glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
@@ -755,6 +756,12 @@ void collideAndMove() {
 	}
 	if ((distancez <= user->radius + groundSize / 20) && ((user->location.x <= finishPos.x + groundSize / 20) && (user->location.x >= finishPos.x - groundSize / 20))) {
 		isWon = true;
+	}
+
+	//edge collision
+	if (user->location.x < -groundSize / 2 || user->location.z < -groundSize / 2
+		|| user->location.x > groundSize / 2 || user->location.z > groundSize / 2) {
+		isLost = true;
 	}
 	user->moveForward(-z, x);
 }
@@ -834,7 +841,7 @@ int main( int argc, char *argv[] ) {
 			glViewport(overlayX, overlayY, overlaySize, overlaySize);
 
 			// First person camera view matrix
-			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 20, 0), lookAtPoint, glm::vec3(0, 0, 1));
+			glm::mat4 viewMtx = glm::lookAt(glm::vec3(0, 30, 0), lookAtPoint, glm::vec3(-1, 0, 0));
 			renderScene(viewMtx, projectionMatrix);
 		}
 
