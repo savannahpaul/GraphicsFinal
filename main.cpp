@@ -70,10 +70,10 @@ struct Light {
 };
 
 CSCI441::ShaderProgram* textureShaderProgram = NULL;
-CSCI441::ShaderProgram* phongShaderProgram = NULL;
 GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, uniform_color_loc;
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
+CSCI441::ShaderProgram* phongShaderProgram = NULL;
 std::vector< Marble* > marbles;
 Marble* user;
 GLfloat groundSize = 30;
