@@ -19,7 +19,6 @@ void main() {
     //*****************************************
     //********* Vertex Calculations  **********
     //*****************************************
-    
     // TODO #G2
 	if(vPosition[0] > 0 && vPosition[1] > 0 && vPosition[2] < 0){
 		newVertex = vPosition + 1.2*((sin(time*2)+1)/2) - .2;

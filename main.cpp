@@ -77,9 +77,10 @@ GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
 CSCI441::ShaderProgram* phongShaderProgram = NULL;
 
-GLuint shaderProgramHandle = 0;
+CSCI441::ShaderProgram* shaderProgramHandle = NULL;
 GLint mvp_uniform_location = -1, time_uniform_location = -1;
 GLint vpos_attrib_location = -1;
+glm::vec3 deadPos;
 
 std::vector< Marble* > marbles;
 Marble* user;
@@ -472,10 +473,10 @@ void setupShaders() {
 	texture_uniform_location = phongShaderProgram->getUniformLocation( "texSampler"  );
 	
 	// attribs
-	vPos_attrib_location   = phongShaderProgram->getAttributeLocation( "vertCoord"       );
-	norm_attrib_location   = phongShaderProgram->getAttributeLocation( "vertNormal"      );
-	texel_attrib_location  = phongShaderProgram->getAttributeLocation( "texCoord"        );
-	camera_attrib_location = phongShaderProgram->getAttributeLocation( "cameraPosition"  );
+	vPos_attrib_location   = phongShaderProgram->getAttributeLocation( "vertCoord"  );
+	norm_attrib_location   = phongShaderProgram->getAttributeLocation( "vertNormal" );
+	texel_attrib_location  = phongShaderProgram->getAttributeLocation( "texCoord"   );
+	camera_attrib_location = phongShaderProgram->getAttributeLocation( "cameraPos"  );
 }
 
 
@@ -489,10 +490,12 @@ void setupSkyboxShaders() {
 	attrib_vTextureCoord_loc 	 = textureShaderProgram->getAttributeLocation( "vTextureCoord" );
 
 	//set up death shader program
-	customShaderProgram = new CSCI441::ShaderProgram("shaders/customShader.v.glsl", "shaders/customShader.f.glsl");
-	mvp_uniform_location  = customShaderProgram->getUniformLocation("mvpMatrix");
-	time_uniform_location = customShaderProgram->getUniformLocation("time");
-	vpos_attrib_location  = customShaderProgram->getAttributeLocation("vPosition");
+
+	shaderProgramHandle = new CSCI441::ShaderProgram("shaders/customShader.v.glsl", "shaders/customShader.f.glsl");
+	mvp_uniform_location = shaderProgramHandle->getUniformLocation("mvpMatrix");
+	time_uniform_location = shaderProgramHandle->getUniformLocation("time");
+	vpos_attrib_location = shaderProgramHandle->getAttributeLocation("vPosition");
+
 
 }
 
@@ -529,6 +532,7 @@ void setupBuffers() {
 
 	glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, vbods[1] );
 	glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( platformIndices ), platformIndices, GL_STATIC_DRAW );
+
 
 	//////////////////////////////////////////
 	//
@@ -647,6 +651,7 @@ void setupBuffers() {
   glVertexAttribPointer(attrib_vPos_loc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexTextured), (void*) 0);
   glEnableVertexAttribArray(attrib_vTextureCoord_loc);
   glVertexAttribPointer(attrib_vTextureCoord_loc, 2, GL_FLOAT, GL_FALSE, sizeof(VertexTextured), (void*) (sizeof(float) * 3));
+
 }
 
 void populateMarbles() {
@@ -791,10 +796,13 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glUniformMatrix4fv(model_uniform_location, 1, GL_FALSE, &m[0][0]);
 	user->draw(m, model_uniform_location, uniform_color_loc);
 
-	if (isDead) {
-		glUseProgram(shaderProgramHandle);
-		glm::mat4 mvpMtx = projectionMatrix * viewMatrix;
+	if (isLost) {
+		shaderProgramHandle->useProgram();
+		//glEnableVertexAttribArray(vpos_attrib_location);
+		//glVertexAttribPointer(vpos_attrib_location, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), &deadPos);
+		glm::mat4 mvpMtx = m * projectionMatrix * viewMatrix;
 		glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
+		//glUniform3f(vpos_uniform_location, deadPos);
 		glUniform1f(time_uniform_location, glfwGetTime());
 	}
 	
@@ -816,6 +824,12 @@ void movePlayer() {
 
 
 void collideAndMove() {
+	if (isLost) {
+		//CSCI441::setVertexAttributeLocations(vpos_attrib_location);
+		user->location.y -= .1;
+		return;
+	}
+
 	float x = xAngle;
 	float z = zAngle;
 	for (int i = 0; i < mazePieces.size(); i++) {
@@ -849,6 +863,7 @@ void collideAndMove() {
 	if (user->location.x < -groundSize / 2 || user->location.z < -groundSize / 2
 		|| user->location.x > groundSize / 2 || user->location.z > groundSize / 2) {
 		isLost = true;
+		deadPos = user->location;
 	}
 	user->moveForward(-z, x);
 }
@@ -941,7 +956,6 @@ int main( int argc, char *argv[] ) {
 			levelNum++;
 			startNewLevel();
 		}
-
 
 		glfwSwapBuffers(window);// flush the OpenGL commands and make sure they get rendered!
 		glfwPollEvents();				// check for any events and signal to redraw screen

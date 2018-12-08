@@ -10,7 +10,7 @@
 in vec2 texCoord;
 in vec4 vertCoord;
 in vec4 vertNormal;
-in vec3 cameraPosition;
+in vec3 cameraPos;
 
 // passed through to fragment shader
 out vec4 fragCoord;
@@ -23,7 +23,7 @@ uniform mat4 mvMatrix;
 void main() {
 	
     // some stuff to pass through
-	fragCameraPos = cameraPosition;
+	fragCameraPos = cameraPos;
 	fragCoord = vertCoord;
 	fragNormal = vertNormal;
     fragTexCoord = texCoord;	
