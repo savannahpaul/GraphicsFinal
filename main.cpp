@@ -66,6 +66,11 @@ CSCI441::ShaderProgram* textureShaderProgram = NULL;
 GLint uniform_modelMtx_loc, uniform_viewProjetionMtx_loc, uniform_tex_loc, uniform_color_loc;
 GLint attrib_vPos_loc, attrib_vTextureCoord_loc;
 
+GLuint shaderProgramHandle = 0;
+GLint mvp_uniform_location = -1, time_uniform_location = -1;
+GLint vpos_attrib_location = -1;
+
+
 std::vector< Marble* > marbles;
 Marble* user;
 GLfloat groundSize = 30;
@@ -429,7 +434,15 @@ void setupShaders() {
 	uniform_color_loc			 = textureShaderProgram->getUniformLocation( "color" );
 	attrib_vPos_loc			     = textureShaderProgram->getAttributeLocation( "vPos" );
 	attrib_vTextureCoord_loc 	 = textureShaderProgram->getAttributeLocation( "vTextureCoord" );
+
+	//set up death shader program
+	shaderProgramHandle = createShaderProgram("shaders/customShader.v.glsl", "shaders/customShader.f.glsl");
+	mvp_uniform_location = glGetUniformLocation(shaderProgramHandle, "mvpMatrix");
+	time_uniform_location = glGetUniformLocation(shaderProgramHandle, "time");
+	vpos_attrib_location = glGetAttribLocation(shaderProgramHandle, "vPosition");
+
 }
+
 
 // setupBuffers() //////////////////////////////////////////////////////////////
 //
@@ -692,6 +705,14 @@ void renderScene( glm::mat4 viewMatrix, glm::mat4 projectionMatrix ) {
 	glm::vec3 loc = glm::vec3(user->location.x / groundSize, user->location.y / groundSize, user->location.z / groundSize);
 	m = glm::translate(m, loc);
 	glUniformMatrix4fv(uniform_modelMtx_loc, 1, GL_FALSE, &m[0][0]);
+
+	if (isLost) {
+		glUseProgram(shaderProgramHandle);
+		glm::mat4 mvpMtx = projectionMatrix * viewMatrix;
+		glUniformMatrix4fv(mvp_uniform_location, 1, GL_FALSE, &mvpMtx[0][0]);
+		glUniform1f(time_uniform_location, glfwGetTime());
+	}
+
 	user->draw(m, uniform_modelMtx_loc, uniform_color_loc);
 }
 
